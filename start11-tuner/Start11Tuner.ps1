@@ -2,17 +2,21 @@
 <#
   Start11 Tuner — конфигуратор Start11 в раскладке его родного окна.
 
-  Значения читаются и пишутся строками в
-  HKCU\Software\Stardock\Start8\Start8.ini\Start8 — так их хранит сам Start11.
-  Перед записью делается бэкап в %LOCALAPPDATA%\Start11Tuner.
+  Все значения читаются из HKCU\Software\Stardock\Start8\Start8.ini\Start8 и
+  пишутся обратно строками — так их хранит сам Start11. Список контролов
+  строится из того, что реально лежит в ключе, поэтому охватывает все настройки,
+  которые Start11 успел записать.
+
+  Кнопка «Применить»: бэкап -> попытка закрыть Start11 -> перезапуск explorer ->
+  окно закрывается. Без перезагрузки; исключение — смена стиля между 10 и 11.
 
   Не делает: активацию/обход лицензии, редактор закреплённых (подключи
-  Right/RightMode в неразобранном формате), редактор цветов.
+  Right/RightMode в неразобранном формате).
 #>
 Add-Type -AssemblyName System.Windows.Forms, System.Drawing
 
-$key      = 'HKCU:\Software\Stardock\Start8\Start8.ini\Start8'
-$bkDir    = Join-Path $env:LOCALAPPDATA 'Start11Tuner'
+$key       = 'HKCU:\Software\Stardock\Start8\Start8.ini\Start8'
+$bkDir     = Join-Path $env:LOCALAPPDATA 'Start11Tuner'
 $configExe = 'C:\Program Files (x86)\Stardock\Start11\Start11Config.exe'
 
 $C_BG      = [System.Drawing.ColorTranslator]::FromHtml('#1b1b1f')
@@ -28,40 +32,15 @@ if (-not (Test-Path $key)) {
     return
 }
 
+# эти значения не показываем и не перезаписываем: служебные для лицензии/кэша
+$skip = @('LS', 'TextLookupD', 'LastSeenOS2', 'QC', 'MenuMode')
+
 $styles = @(
     @{ mode = 1; name = 'Стиль Windows 7';   desc = 'Классическое меню Windows 7.' },
     @{ mode = 2; name = 'Стиль Modern';      desc = 'Обновлённый стиль Windows 7.' },
     @{ mode = 3; name = 'Стиль Windows 10';  desc = 'Стиль Windows 10 с улучшениями.' },
     @{ mode = 4; name = 'Стиль Windows 11';  desc = 'Стиль Windows 11 с улучшениями.' },
     @{ mode = 5; name = 'Стиль Windows App'; desc = 'Обновлённый стиль Windows 11.' }
-)
-
-# группы настроек: кеи и типы взяты из живого ключа Start11
-$groups = @(
-    @{ id = 'menu'; name = 'Меню «Пуск»'; items = @(
-        @{ kind = 'bool'; key = 'AcrylicBlurEnabled';     label = 'Акрил / размытие меню' }
-        @{ kind = 'bool'; key = 'S11_ForceDarkMode';      label = 'Тёмное меню независимо от системы' }
-        @{ kind = 'bool'; key = 'S11_UseWallpaperEffect'; label = 'Подложка из обоев' }
-        @{ kind = 'int';  key = 'MenuAlphaValue';         label = 'Прозрачность меню'; min = 0; max = 100 }
-    ) }
-    @{ id = 'taskbar'; name = 'Панель задач'; items = @(
-        @{ kind = 'bool'; key = 'EnableS11Taskbar';      label = 'Панель задач Start11' }
-        @{ kind = 'bool'; key = 'TaskbarOnTop';          label = 'Панель сверху' }
-        @{ kind = 'bool'; key = 'SecondaryTaskbarOnTop'; label = 'Сверху и на втором мониторе' }
-        @{ kind = 'bool'; key = 'TaskbarDisallowBlur';   label = 'Запретить размытие' }
-        @{ kind = 'int';  key = 'TaskbarAlphaValue';     label = 'Прозрачность панели'; min = 0; max = 100 }
-    ) }
-    @{ id = 'pins'; name = 'Закреплённые на панели'; items = @(
-        @{ kind = 'bool'; key = 'ShowRight';        label = 'Правая колонка закреплённых' }
-        @{ kind = 'bool'; key = 'ShowIconsOnRight'; label = 'Иконки в правой колонке' }
-        @{ kind = 'bool'; key = 'TileMode';         label = 'Плитки вместо списка' }
-        @{ kind = 'bool'; key = 'RightIconMode';    label = 'Крупные иконки справа' }
-    ) }
-    @{ id = 'search'; name = 'Поиск'; items = @(
-        @{ kind = 'bool'; key = 'UseCortanaSearch'; label = 'Веб-поиск Cortana' }
-    ) }
-    @{ id = 'manage'; name = 'Управление'; items = @() }
-    @{ id = 'about';  name = 'О программе'; items = @() }
 )
 
 function New-RoundedPath([System.Drawing.RectangleF]$r, [single]$rad) {
@@ -75,12 +54,6 @@ function New-RoundedPath([System.Drawing.RectangleF]$r, [single]$rad) {
     $p
 }
 
-function Get-Val([string]$name) {
-    $v = (Get-ItemProperty $key -Name $name -ErrorAction SilentlyContinue).$name
-    if ($null -eq $v) { return $null }
-    [string]$v
-}
-
 function Save-Backup {
     New-Item -ItemType Directory -Force -Path $bkDir | Out-Null
     $obj = [ordered]@{}
@@ -90,17 +63,35 @@ function Save-Backup {
     $file
 }
 
+function Get-GroupName([string]$name) {
+    if ($name -match 'Taskbar') { return 'taskbar' }
+    if ($name -match 'Search') { return 'search' }
+    if ($name -match 'Right|Tile|Pins|Icon|Metro|Folder') { return 'pins' }
+    if ($name -match '^(S11_|Menu|Acrylic|Custom|Background|UseFormica|FullUI|Texture|Skinned|Darken)') { return 'look' }
+    return 'other'
+}
+
+# ---------- снимок текущих значений ----------
+$props = (Get-ItemProperty $key).PSObject.Properties | Where-Object { $_.Name -notlike 'PS*' -and $skip -notcontains $_.Name }
+$values = [ordered]@{}
+foreach ($p in $props) { $values[$p.Name] = [string]$p.Value }
+
 $script:selected = 0
-$m = Get-Val 'MenuMode'
-if ($m -and [int]$m -ge 1 -and [int]$m -le 5) { $script:selected = [int]$m }
-$script:bound = New-Object System.Collections.ArrayList
-$script:pages = @{}
+$mm = $values['MenuMode']
+$rawMode = (Get-ItemProperty $key -Name MenuMode -ErrorAction SilentlyContinue).MenuMode
+if ($rawMode -and [int]$rawMode -ge 1 -and [int]$rawMode -le 5) { $script:selected = [int]$rawMode }
+
+$bucket = [ordered]@{ look = @(); taskbar = @(); pins = @(); search = @(); other = @() }
+foreach ($n in $values.Keys) { $bucket[(Get-GroupName $n)] += $n }
+
+$script:writers = New-Object System.Collections.ArrayList   # контролы, которые пишем в реестр
 $script:navLabels = New-Object System.Collections.ArrayList
+$script:pages = @{}
 
 # ---------- окно ----------
 $form = New-Object System.Windows.Forms.Form
 $form.Text = 'Start11 Tuner'
-$form.Size = New-Object System.Drawing.Size(1020, 726)
+$form.Size = New-Object System.Drawing.Size(1020, 706)
 $form.StartPosition = 'CenterScreen'
 $form.FormBorderStyle = 'FixedDialog'
 $form.MaximizeBox = $false
@@ -110,22 +101,21 @@ $form.Font = New-Object System.Drawing.Font('Segoe UI', 9)
 
 $side = New-Object System.Windows.Forms.Panel
 $side.Location = New-Object System.Drawing.Point(0, 0)
-$side.Size = New-Object System.Drawing.Size(230, 688)
+$side.Size = New-Object System.Drawing.Size(230, 668)
 $side.BackColor = $C_SIDE
 $form.Controls.Add($side)
 
-# ---------- заголовок ----------
 $title = New-Object System.Windows.Forms.Label
 $title.Text = 'Меню «Пуск»'
-$title.Location = New-Object System.Drawing.Point(270, 26)
+$title.Location = New-Object System.Drawing.Point(270, 22)
 $title.AutoSize = $true
-$title.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 19)
+$title.Font = New-Object System.Drawing.Font('Segoe UI Semibold', 18)
 $title.ForeColor = $C_TEXT
 $form.Controls.Add($title)
 
 $sub = New-Object System.Windows.Forms.Label
 $sub.Text = 'Стиль меню «Пуск»'
-$sub.Location = New-Object System.Drawing.Point(272, 74)
+$sub.Location = New-Object System.Drawing.Point(272, 66)
 $sub.AutoSize = $true
 $sub.ForeColor = $C_MUTED
 $form.Controls.Add($sub)
@@ -135,8 +125,8 @@ $script:cards = New-Object System.Collections.ArrayList
 $x = 270
 foreach ($s in $styles) {
     $card = New-Object System.Windows.Forms.Panel
-    $card.Location = New-Object System.Drawing.Point($x, 100)
-    $card.Size = New-Object System.Drawing.Size(140, 214)
+    $card.Location = New-Object System.Drawing.Point($x, 92)
+    $card.Size = New-Object System.Drawing.Size(136, 206)
     $card.BackColor = $C_BG
     $card.Tag = $s
     $card.Cursor = 'Hand'
@@ -153,29 +143,29 @@ foreach ($s in $styles) {
         $g.FillPath($bg, $path); $bg.Dispose()
         if ($isSel) { $pen = New-Object System.Drawing.Pen $C_ACCENT, 2; $g.DrawPath($pen, $path); $pen.Dispose() }
 
-        $pv = New-Object System.Drawing.RectangleF 14, 14, ($sender.Width - 28), 100
+        $pv = New-Object System.Drawing.RectangleF 14, 14, ($sender.Width - 28), 96
         $pvp = New-RoundedPath $pv 4
         $pbg = New-Object System.Drawing.SolidBrush ([System.Drawing.ColorTranslator]::FromHtml('#3a3a46'))
         $g.FillPath($pbg, $pvp); $pbg.Dispose(); $pvp.Dispose()
 
         $fg = New-Object System.Drawing.SolidBrush ([System.Drawing.ColorTranslator]::FromHtml('#5a5a6b'))
         switch ([int]$st.mode) {
-            1 { $g.FillRectangle($fg, 20, 28, 44, 20); $g.FillRectangle($fg, 70, 28, 44, 70); $g.FillRectangle($fg, 20, 54, 44, 44) }
-            2 { $g.FillRectangle($fg, 20, 24, 94, 9); $g.FillRectangle($fg, 20, 39, 58, 63); $g.FillRectangle($fg, 84, 39, 30, 63) }
-            3 { for ($r = 0; $r -lt 2; $r++) { for ($c = 0; $c -lt 4; $c++) { $g.FillRectangle($fg, (20 + $c * 25), (28 + $r * 26), 21, 21) } } }
-            4 { for ($r = 0; $r -lt 3; $r++) { for ($c = 0; $c -lt 5; $c++) { $g.FillRectangle($fg, (22 + $c * 19), (28 + $r * 22), 15, 17) } } }
-            5 { for ($r = 0; $r -lt 4; $r++) { $g.FillRectangle($fg, 22, (26 + $r * 16), 92, 8) } }
+            1 { $g.FillRectangle($fg, 20, 26, 44, 20); $g.FillRectangle($fg, 70, 26, 44, 68); $g.FillRectangle($fg, 20, 52, 44, 42) }
+            2 { $g.FillRectangle($fg, 20, 22, 94, 9); $g.FillRectangle($fg, 20, 37, 58, 61); $g.FillRectangle($fg, 84, 37, 30, 61) }
+            3 { for ($r = 0; $r -lt 2; $r++) { for ($c = 0; $c -lt 4; $c++) { $g.FillRectangle($fg, (20 + $c * 25), (26 + $r * 26), 21, 21) } } }
+            4 { for ($r = 0; $r -lt 3; $r++) { for ($c = 0; $c -lt 5; $c++) { $g.FillRectangle($fg, (22 + $c * 19), (26 + $r * 22), 15, 17) } } }
+            5 { for ($r = 0; $r -lt 4; $r++) { $g.FillRectangle($fg, 22, (24 + $r * 16), 92, 8) } }
         }
         $fg.Dispose()
 
         $fN = New-Object System.Drawing.Font('Segoe UI', 9.5)
         $tb = New-Object System.Drawing.SolidBrush ($(if ($isSel) { $C_ACCENT } else { $C_TEXT }))
-        $g.DrawString($st.name, $fN, $tb, (New-Object System.Drawing.RectangleF 12, 124, ($sender.Width - 24), 42))
+        $g.DrawString($st.name, $fN, $tb, (New-Object System.Drawing.RectangleF 12, 120, ($sender.Width - 24), 42))
         $tb.Dispose(); $fN.Dispose()
 
         $fD = New-Object System.Drawing.Font('Segoe UI', 8)
         $mb = New-Object System.Drawing.SolidBrush $C_MUTED
-        $g.DrawString($st.desc, $fD, $mb, (New-Object System.Drawing.RectangleF 12, 168, ($sender.Width - 24), 40))
+        $g.DrawString($st.desc, $fD, $mb, (New-Object System.Drawing.RectangleF 12, 162, ($sender.Width - 24), 40))
         $mb.Dispose(); $fD.Dispose()
     })
 
@@ -187,66 +177,115 @@ foreach ($s in $styles) {
 
     $form.Controls.Add($card)
     [void]$script:cards.Add($card)
-    $x += 152
+    $x += 146
 }
 
-# ---------- страницы настроек ----------
+# ---------- поиск по настройкам ----------
+$searchBox = New-Object System.Windows.Forms.TextBox
+$searchBox.Location = New-Object System.Drawing.Point(270, 306)
+$searchBox.Size = New-Object System.Drawing.Size(300, 24)
+$searchBox.BackColor = $C_CARD
+$searchBox.ForeColor = $C_TEXT
+$searchBox.BorderStyle = 'FixedSingle'
+$form.Controls.Add($searchBox)
+
+$searchHint = New-Object System.Windows.Forms.Label
+$searchHint.Text = 'фильтр по имени ключа'
+$searchHint.Location = New-Object System.Drawing.Point(580, 310)
+$searchHint.AutoSize = $true
+$searchHint.ForeColor = $C_MUTED
+$form.Controls.Add($searchHint)
+
+# ---------- страницы ----------
+$groups = @(
+    @{ id = 'look';    name = 'Меню «Пуск»' },
+    @{ id = 'taskbar'; name = 'Панель задач' },
+    @{ id = 'pins';    name = 'Закреплённые на панели' },
+    @{ id = 'search';  name = 'Поиск' },
+    @{ id = 'other';   name = 'Прочие ключи' },
+    @{ id = 'manage';  name = 'Управление' },
+    @{ id = 'about';   name = 'О программе' }
+)
+
 foreach ($grp in $groups) {
     $page = New-Object System.Windows.Forms.Panel
-    $page.Location = New-Object System.Drawing.Point(264, 324)
-    $page.Size = New-Object System.Drawing.Size(720, 236)
+    $page.Location = New-Object System.Drawing.Point(264, 338)
+    $page.Size = New-Object System.Drawing.Size(724, 236)
     $page.BackColor = $C_BG
     $page.AutoScroll = $true
     $page.Visible = $false
     $form.Controls.Add($page)
 
-    $y = 0
-    foreach ($it in $grp.items) {
-        $cur = Get-Val $it.key
-        $exists = $null -ne $cur
+    if ($grp.id -in @('look', 'taskbar', 'pins', 'search', 'other')) {
+        $y = 0
+        foreach ($n in $bucket[$grp.id]) {
+            $cur = $values[$n]
+            if ($cur -eq '0' -or $cur -eq '1') {
+                $cb = New-Object System.Windows.Forms.CheckBox
+                $cb.Text = $n
+                $cb.Location = New-Object System.Drawing.Point(0, $y)
+                $cb.AutoSize = $true
+                $cb.ForeColor = $C_TEXT
+                $cb.Checked = ($cur -eq '1')
+                $cb.Tag = $n
+                [void]$script:writers.Add($cb)
+                $page.Controls.Add($cb)
+                $y += 28
+            } elseif ($cur -match '^\d{1,4}$') {
+                $lbl = New-Object System.Windows.Forms.Label
+                $lbl.Text = $n
+                $lbl.Location = New-Object System.Drawing.Point(0, $y)
+                $lbl.AutoSize = $true
+                $lbl.ForeColor = $C_TEXT
+                $page.Controls.Add($lbl)
 
-        if ($it.kind -eq 'bool') {
-            $ctrl = New-Object System.Windows.Forms.CheckBox
-            $ctrl.Text = $it.label
-            if (-not $exists) { $ctrl.Text += '   (Start11 ещё не записал это значение)' }
-            $ctrl.Location = New-Object System.Drawing.Point(0, $y)
-            $ctrl.AutoSize = $true
-            $ctrl.ForeColor = $(if ($exists) { $C_TEXT } else { $C_MUTED })
-            $ctrl.Enabled = $exists
-            $ctrl.Checked = ($cur -eq '1')
-            $ctrl.Tag = $it.key
-            [void]$script:bound.Add($ctrl)
-            $page.Controls.Add($ctrl)
-            $y += 32
-        } else {
-            $lbl = New-Object System.Windows.Forms.Label
-            $lbl.Text = $it.label
-            $lbl.Location = New-Object System.Drawing.Point(0, $y)
-            $lbl.AutoSize = $true
-            $lbl.ForeColor = $C_TEXT
-            $page.Controls.Add($lbl)
+                $num = New-Object System.Windows.Forms.NumericUpDown
+                $num.Location = New-Object System.Drawing.Point(260, ($y - 3))
+                $num.Size = New-Object System.Drawing.Size(80, 24)
+                $num.Minimum = 0
+                $num.Maximum = 9999
+                $num.Value = [int]$cur
+                $num.Tag = $n
+                $num.BackColor = $C_CARD
+                $num.ForeColor = $C_TEXT
+                [void]$script:writers.Add($num)
+                $page.Controls.Add($num)
+                $y += 32
+            } else {
+                $lbl = New-Object System.Windows.Forms.Label
+                $lbl.Text = $n
+                $lbl.Location = New-Object System.Drawing.Point(0, $y)
+                $lbl.AutoSize = $true
+                $lbl.ForeColor = $C_TEXT
+                $page.Controls.Add($lbl)
 
-            $num = New-Object System.Windows.Forms.NumericUpDown
-            $num.Location = New-Object System.Drawing.Point(220, ($y - 3))
-            $num.Size = New-Object System.Drawing.Size(70, 24)
-            $num.Minimum = $it.min
-            $num.Maximum = $it.max
-            $num.Value = if ($exists) { [int]$cur } else { 0 }
-            $num.Enabled = $exists
-            $num.Tag = $it.key
-            $num.BackColor = $C_CARD
-            $num.ForeColor = $C_TEXT
-            $num.BorderStyle = 'FixedSingle'
-            [void]$script:bound.Add($num)
-            $page.Controls.Add($num)
-            $y += 36
+                $txt = New-Object System.Windows.Forms.TextBox
+                $txt.Location = New-Object System.Drawing.Point(260, ($y - 3))
+                $txt.Size = New-Object System.Drawing.Size(420, 24)
+                $txt.Text = $cur
+                $txt.Tag = $n
+                $txt.BackColor = $C_CARD
+                $txt.ForeColor = $C_TEXT
+                $txt.BorderStyle = 'FixedSingle'
+                [void]$script:writers.Add($txt)
+                $page.Controls.Add($txt)
+                $y += 32
+            }
+        }
+        if ($bucket[$grp.id].Count -eq 0) {
+            $empty = New-Object System.Windows.Forms.Label
+            $empty.Text = 'Start11 ещё не записывал ключи для этого раздела.'
+            $empty.Location = New-Object System.Drawing.Point(0, 0)
+            $empty.AutoSize = $true
+            $empty.ForeColor = $C_MUTED
+            $page.Controls.Add($empty)
         }
     }
 
     if ($grp.id -eq 'manage') {
         $list = New-Object System.Windows.Forms.ListBox
         $list.Location = New-Object System.Drawing.Point(0, 0)
-        $list.Size = New-Object System.Drawing.Size(320, 120)
+        $list.Size = New-Object System.Drawing.Size(330, 130)
         $list.BackColor = $C_CARD
         $list.ForeColor = $C_TEXT
         $list.BorderStyle = 'None'
@@ -255,7 +294,7 @@ foreach ($grp in $groups) {
 
         $b1 = New-Object System.Windows.Forms.Button
         $b1.Text = 'Восстановить выбранный'
-        $b1.Location = New-Object System.Drawing.Point(0, 132)
+        $b1.Location = New-Object System.Drawing.Point(0, 142)
         $b1.Size = New-Object System.Drawing.Size(220, 32)
         $b1.FlatStyle = 'Flat'
         $b1.BackColor = $C_CARD
@@ -269,13 +308,13 @@ foreach ($grp in $groups) {
                 Set-ItemProperty $key -Name $p.Name -Value ([string]$p.Value) -Type String -ErrorAction SilentlyContinue
                 $n++
             }
-            $status.Text = "Восстановлено значений: $n из $($script:backupList.SelectedItem). Нужна перезагрузка."
+            $script:status.Text = "Восстановлено значений: $n из $($script:backupList.SelectedItem)."
         })
         $page.Controls.Add($b1)
 
         $b2 = New-Object System.Windows.Forms.Button
         $b2.Text = 'Открыть папку бэкапов'
-        $b2.Location = New-Object System.Drawing.Point(232, 132)
+        $b2.Location = New-Object System.Drawing.Point(232, 142)
         $b2.Size = New-Object System.Drawing.Size(184, 32)
         $b2.FlatStyle = 'Flat'
         $b2.BackColor = $C_CARD
@@ -285,7 +324,7 @@ foreach ($grp in $groups) {
 
         $b3 = New-Object System.Windows.Forms.Button
         $b3.Text = 'Настройки Start11'
-        $b3.Location = New-Object System.Drawing.Point(0, 172)
+        $b3.Location = New-Object System.Drawing.Point(0, 182)
         $b3.Size = New-Object System.Drawing.Size(220, 32)
         $b3.FlatStyle = 'Flat'
         $b3.BackColor = $C_CARD
@@ -294,9 +333,9 @@ foreach ($grp in $groups) {
         $page.Controls.Add($b3)
 
         $note = New-Object System.Windows.Forms.Label
-        $note.Text = 'Перед применением выключи меню Start11: работающий процесс перезаписывает настройки при выходе.'
-        $note.Location = New-Object System.Drawing.Point(0, 214)
-        $note.Size = New-Object System.Drawing.Size(560, 60)
+        $note.Text = 'Перед применением лучше выйти из Start11 из его трея: работающий процесс перезаписывает настройки при выходе.'
+        $note.Location = New-Object System.Drawing.Point(0, 226)
+        $note.Size = New-Object System.Drawing.Size(560, 50)
         $note.ForeColor = $C_MUTED
         $page.Controls.Add($note)
     }
@@ -304,21 +343,34 @@ foreach ($grp in $groups) {
     if ($grp.id -eq 'about') {
         $about = New-Object System.Windows.Forms.Label
         $about.Location = New-Object System.Drawing.Point(0, 0)
-        $about.Size = New-Object System.Drawing.Size(680, 220)
+        $about.Size = New-Object System.Drawing.Size(690, 240)
         $about.ForeColor = $C_MUTED
-        $about.Text = "Start11 Tuner — конфигуратор поверх родных настроек Start11.`n`n" +
+        $about.Text = "Start11 Tuner — редактор всех настроек, которые Start11 хранит в реестре.`n`n" +
                       "Ключ: HKCU\Software\Stardock\Start8\Start8.ini\Start8`n" +
-                      "Значения хранятся строками, булевы — 0/1.`n`n" +
-                      "Собрано по разбору Start11 3.0.0.4.`n" +
-                      "Не делает: активацию и обход лицензии, редактор закреплённых, редактор цветов."
+                      "Контролы строятся по фактическому содержимому ключа: 0/1 — галочки,`n" +
+                      "числа — счётчики, остальное — поля ввода.`n`n" +
+                      "Служебные значения (LS, TextLookupD, LastSeenOS2, QC) скрыты и не пишутся.`n" +
+                      "Смена стиля между Windows 10 и Windows 11 требует перезагрузки."
         $page.Controls.Add($about)
     }
 
     $script:pages[$grp.id] = $page
 }
 
+# фильтр
+$searchBox.Add_TextChanged({
+    $q = $searchBox.Text.Trim().ToLower()
+    foreach ($pid in @('look', 'taskbar', 'pins', 'search', 'other')) {
+        foreach ($ctrl in $script:pages[$pid].Controls) {
+            if ($ctrl.Tag) {
+                $ctrl.Visible = ($q -eq '' -or ([string]$ctrl.Tag).ToLower().Contains($q))
+            }
+        }
+    }
+})
+
 # ---------- навигация ----------
-$y = 24
+$y = 20
 foreach ($grp in $groups) {
     $lbl = New-Object System.Windows.Forms.Label
     $lbl.Text = '   ' + $grp.name
@@ -345,31 +397,27 @@ foreach ($grp in $groups) {
 
 $script:bar = New-Object System.Windows.Forms.Panel
 $script:bar.BackColor = $C_ACCENT
-$script:bar.Location = New-Object System.Drawing.Point(0, 24)
+$script:bar.Location = New-Object System.Drawing.Point(0, 20)
 $script:bar.Size = New-Object System.Drawing.Size(3, 40)
 $side.Controls.Add($script:bar)
-
 $script:navLabels[0].ForeColor = $C_TEXT
 $script:navLabels[0].BackColor = $C_BG
-$script:pages['menu'].Visible = $true
+$script:pages['look'].Visible = $true
 
 # ---------- статус и кнопки ----------
-$status = New-Object System.Windows.Forms.Label
-$status.Location = New-Object System.Drawing.Point(270, 566)
-$status.Size = New-Object System.Drawing.Size(700, 46)
-$status.ForeColor = $C_MUTED
-$form.Controls.Add($status)
+$script:status = New-Object System.Windows.Forms.Label
+$script:status.Location = New-Object System.Drawing.Point(270, 584)
+$script:status.Size = New-Object System.Drawing.Size(720, 32)
+$script:status.ForeColor = $C_MUTED
+$form.Controls.Add($script:status)
 
 $running = (Get-Process Start11_64 -ErrorAction SilentlyContinue) -ne $null
-$status.Text = 'Смена стиля между Windows 10 и Windows 11 требует перезагрузки.'
-if ($running) {
-    $status.Text += "`n" + 'Start11 запущен — он перезапишет значения при выходе. Сначала выключи его меню.'
-    $status.ForeColor = $C_ACCENT
-}
+$script:status.Text = "Ключей в редакторе: $($values.Count). Смена стиля 10/11 требует перезагрузки."
+if ($running) { $script:status.Text += ' Start11 запущен — он перепишет значения при выходе.' ; $script:status.ForeColor = $C_ACCENT }
 
 $btnApply = New-Object System.Windows.Forms.Button
 $btnApply.Text = 'Применить'
-$btnApply.Location = New-Object System.Drawing.Point(270, 620)
+$btnApply.Location = New-Object System.Drawing.Point(270, 624)
 $btnApply.Size = New-Object System.Drawing.Size(160, 34)
 $btnApply.FlatStyle = 'Flat'
 $btnApply.BackColor = $C_ACCENT
@@ -379,7 +427,7 @@ $form.Controls.Add($btnApply)
 
 $btnRevert = New-Object System.Windows.Forms.Button
 $btnRevert.Text = 'Откатить'
-$btnRevert.Location = New-Object System.Drawing.Point(442, 620)
+$btnRevert.Location = New-Object System.Drawing.Point(442, 624)
 $btnRevert.Size = New-Object System.Drawing.Size(160, 34)
 $btnRevert.FlatStyle = 'Flat'
 $btnRevert.BackColor = $C_CARD
@@ -394,48 +442,42 @@ $btnApply.Add_Click({
         Set-ItemProperty $key -Name 'MenuMode' -Value ([string]$script:selected) -Type String
         $written++
     }
-    foreach ($ctrl in $script:bound) {
-        if (-not $ctrl.Enabled) { continue }
+    foreach ($ctrl in $script:writers) {
         $v = if ($ctrl -is [System.Windows.Forms.CheckBox]) {
             if ($ctrl.Checked) { '1' } else { '0' }
-        } else { [string][int]$ctrl.Value }
+        } elseif ($ctrl -is [System.Windows.Forms.NumericUpDown]) {
+            [string][int]$ctrl.Value
+        } else { [string]$ctrl.Text }
         Set-ItemProperty $key -Name $ctrl.Tag -Value $v -Type String
         $written++
     }
-    $status.ForeColor = $C_TEXT
-    $status.Text = "Записано значений: $written. Бэкап: $file" + "`n" + 'Закрываю Start11 и перезапускаю explorer.'
-    $form.Refresh()
 
-    # Start11 при выходе перезаписывает настройки — закрываем его до записи в оболочку.
     $stopNote = ''
     $s11 = Get-Process Start11_64 -ErrorAction SilentlyContinue
     if ($s11) {
-        try { $s11 | Stop-Process -Force -ErrorAction Stop } catch { $stopNote = ' Start11 закрыть не удалось (доступ запрещён) — он может вернуть старые значения.' }
+        try { $s11 | Stop-Process -Force -ErrorAction Stop } catch { $stopNote = 'Start11 закрыть не удалось (доступ запрещён) — он может вернуть старые значения.' }
     }
-
     Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
     Start-Sleep -Seconds 3
     Start-Process explorer.exe
     Start-Sleep -Seconds 4
 
-    if ($stopNote) {
-        Add-Content (Join-Path $bkDir 'last-apply.txt') ("{0} {1}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $stopNote.Trim())
-    }
+    New-Item -ItemType Directory -Force -Path $bkDir | Out-Null
+    Add-Content (Join-Path $bkDir 'last-apply.txt') ("{0} wrote={1} backup={2} {3}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $written, $file, $stopNote)
     $form.Close()
 })
 
 $btnRevert.Add_Click({
     $last = Get-ChildItem $bkDir -Filter 'backup-*.json' -ErrorAction SilentlyContinue |
             Sort-Object LastWriteTime -Descending | Select-Object -First 1
-    if (-not $last) { $status.Text = 'Бэкапов пока нет.'; return }
+    if (-not $last) { $script:status.Text = 'Бэкапов пока нет.'; return }
     $data = Get-Content $last.FullName -Raw | ConvertFrom-Json
     foreach ($p in $data.PSObject.Properties) {
         Set-ItemProperty $key -Name $p.Name -Value ([string]$p.Value) -Type String -ErrorAction SilentlyContinue
     }
-    $status.Text = "Откат из $($last.Name). Перезагрузись, чтобы применилось."
+    $script:status.Text = "Откат из $($last.Name). Значения применятся после перезапуска explorer."
 })
 
-# заполнить список бэкапов
 New-Item -ItemType Directory -Force -Path $bkDir | Out-Null
 Get-ChildItem $bkDir -Filter 'backup-*.json' -ErrorAction SilentlyContinue |
     Sort-Object LastWriteTime -Descending | Select-Object -First 20 |
