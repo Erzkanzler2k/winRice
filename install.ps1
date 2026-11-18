@@ -3,7 +3,7 @@
 $ErrorActionPreference = 'Stop'
 $repo = $PSScriptRoot
 
-$packages = 'glzr-io.glazewm', 'AmN.yasb', 'wez.wezterm', 'Starship.Starship', 'DEVCOM.JetBrainsMonoNerdFont'
+$packages = 'glzr-io.glazewm', 'AmN.yasb', 'wez.wezterm', 'Starship.Starship', 'Fastfetch-cli.Fastfetch', 'DEVCOM.JetBrainsMonoNerdFont'
 foreach ($id in $packages) {
     winget install --id $id -e --accept-package-agreements --accept-source-agreements --disable-interactivity
 }
@@ -21,6 +21,14 @@ foreach ($c in $configs) {
     Write-Host "synced $($c.dst)"
 }
 
+# fastfetch: config + logo, run in WezTerm on shell start
+$ffDir = "$env:USERPROFILE\.config\fastfetch"
+New-Item -ItemType Directory -Force -Path $ffDir | Out-Null
+Copy-Item (Join-Path $repo 'fastfetch\logo.txt') "$ffDir\logo.txt" -Force
+$ffConfig = (Get-Content (Join-Path $repo 'fastfetch\config.jsonc') -Raw).Replace('__LOGO__', "$ffDir\logo.txt".Replace('\', '/'))
+[System.IO.File]::WriteAllText("$ffDir\config.jsonc", $ffConfig, (New-Object System.Text.UTF8Encoding($false)))
+Write-Host "synced $ffDir\config.jsonc"
+
 # starship prompt in Windows PowerShell profile
 $starship = (Get-Command starship -ErrorAction SilentlyContinue).Source
 if (-not $starship) { $starship = 'C:\Program Files\starship\bin\starship.exe' }
@@ -29,6 +37,10 @@ New-Item -ItemType Directory -Force -Path (Split-Path $profilePath) | Out-Null
 if (-not (Test-Path $profilePath) -or -not (Select-String -Path $profilePath -Pattern 'starship\.exe' -Quiet)) {
     Add-Content $profilePath "`nInvoke-Expression (& `"$starship`" init powershell)"
     Write-Host "starship -> $profilePath"
+}
+if (-not (Select-String -Path $profilePath -Pattern 'fastfetch' -Quiet)) {
+    Add-Content $profilePath "`nif (`$env:TERM_PROGRAM -eq 'WezTerm') { fastfetch }"
+    Write-Host "fastfetch -> $profilePath"
 }
 
 # autostart

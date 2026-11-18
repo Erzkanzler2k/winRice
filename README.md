@@ -6,7 +6,7 @@
 
 ![bar](docs/bar.png)
 
-GlazeWM · YASB · WezTerm · Starship · JetBrainsMono Nerd Font
+GlazeWM · YASB · WezTerm · Starship · Fastfetch · JetBrainsMono Nerd Font
 
 </div>
 
@@ -20,7 +20,12 @@ GlazeWM · YASB · WezTerm · Starship · JetBrainsMono Nerd Font
 | **waybar-style bar** | YASB, 30px on top: launcher, workspaces, active window, clock, CPU, RAM, volume. Tokyo Night palette, blurred, at 55% opacity |
 | **rofi / spotlight launcher** | `Alt+Space` or the 🔍 on the bar — searchable app list with icons |
 | **Terminal** | WezTerm in Tokyo Night, JetBrainsMono NF, acrylic background, `Ctrl+Shift+d/e` splits, PowerShell + Starship `λ` |
+| **Fetch** | `fastfetch` with a Windows 11 logo in the accent colour, memory/disk bars. Runs every time a WezTerm tab opens |
 | **Desktop** | Dark Tokyo Night wallpaper, desktop icons hidden, Windows transparency enabled |
+
+## Shell
+
+![fetch](docs/fetch.png)
 
 ## Install
 
@@ -61,6 +66,7 @@ yasb/config.yaml        -> %USERPROFILE%\.config\yasb\config.yaml
 yasb/styles.css         -> %USERPROFILE%\.config\yasb\styles.css
 wezterm/.wezterm.lua    -> %USERPROFILE%\.wezterm.lua
 starship/starship.toml  -> %USERPROFILE%\.config\starship.toml
+fastfetch/              -> %USERPROFILE%\.config\fastfetch\ (config.jsonc + logo.txt)
 wallpaper/tokyonight.png-> %USERPROFILE%\Pictures\winRice-wallpaper.png
 ```
 
