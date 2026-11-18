@@ -33,7 +33,57 @@ if (-not (Test-Path $key)) {
 }
 
 # эти значения не показываем и не перезаписываем: служебные для лицензии/кэша
-$skip = @('LS', 'TextLookupD', 'LastSeenOS2', 'QC', 'MenuMode')
+$skip = @('LS', 'TextLookupD', 'LastSeenOS2', 'QC', 'MenuMode',
+          # служебные флаги первого запуска и миграций — не настройки
+          'NewInstall', 'NewInstallDone', 'StartedOnce', 'SetupLnk', 'SetupLnk11',
+          'CreatedPinned10', 'CreatedPinned11', 'UpgradedRightSide', 'UpgradedRightSide2',
+          'FlushMetro3', 'FlushMetro4', 'AskedAboutStartButton2', 'lRight', 'StandardStartMenuOLD')
+
+# человеческие подписи для разобранных ключей; в подсказке всегда виден сам ключ
+$labels = @{
+    'MenuMode'                 = 'Стиль меню'
+    'AcrylicBlurEnabled'       = 'Акрил / размытие меню'
+    'S11_ForceDarkMode'        = 'Тёмное меню независимо от системы'
+    'S11_UseWallpaperEffect'   = 'Подложка из обоев'
+    'UseFormicaEffect'         = 'Эффект подложки (Formica)'
+    'MenuAlphaValue'           = 'Прозрачность меню, %'
+    'BackgroundAlphaValue'     = 'Прозрачность фона, %'
+    'CustomColour'             = 'Свой цвет меню'
+    'CustomColourV'            = 'Свой цвет меню — значение'
+    'CustomColourTextureMenu'  = 'Свой цвет текстуры меню'
+    'FullUITexture'            = 'Текстура на всё меню'
+    'S11_MaxColourOn'          = 'Кнопка «развернуть» окрашена'
+    'S11_MaxColour'            = 'Цвет кнопки «развернуть»'
+    'S11_SchemeFilter'         = 'Фильтр цветовой схемы'
+    'S11_SchemeApplyTo'        = 'Схема применяется к'
+    'S11_MirrorOSChoice'       = 'Повторять выбор темы системы'
+    'ShowRight'                = 'Правая колонка закреплённых'
+    'ShowIconsOnRight'         = 'Иконки в правой колонке'
+    'RightIconMode'            = 'Крупные иконки справа'
+    'TileMode'                 = 'Плитки вместо списка'
+    'LockedIcons'              = 'Заблокировать раскладку иконок'
+    'SkinIndex'                = 'Номер скина'
+    'StandardStartMenu'        = 'Обычное меню Windows вместо Start11'
+    'Image'                    = 'Картинка кнопки «Пуск»'
+    'EnableS11Taskbar'         = 'Панель задач Start11'
+    'TaskbarOnTop'             = 'Панель задач сверху'
+    'SecondaryTaskbarOnTop'    = 'Сверху и на втором мониторе'
+    'TaskbarDisallowBlur'      = 'Запретить размытие панели'
+    'TaskbarAlphaValue'        = 'Прозрачность панели, %'
+    'CustomColourTaskbar'      = 'Свой цвет панели'
+    'CustomColourTaskbarV'     = 'Свой цвет панели — значение'
+    'S11_TaskbarTextColour'    = 'Цвет текста на панели'
+    'S11_TaskbarFocusColour'   = 'Цвет активного элемента панели'
+    'TaskbarBorderColour'      = 'Цвет рамки панели'
+    'S11_VerticalTBModePrimary'   = 'Вертикальная панель на основном экране'
+    'S11_VerticalTBModeSecondary' = 'Вертикальная панель на втором экране'
+    'HorzAlignS11Taskbar'      = 'Выравнивание панели по горизонтали'
+    'AllowAlignMiddleStartInternal' = 'Кнопки по центру'
+    'UseCortanaSearch'         = 'Веб-поиск Cortana'
+    'DisableCharms'            = 'Отключить панель Charms'
+    'Win7StyleSub'             = 'Отдельные настройки стиля Windows 7'
+    'ModernStyleSub'           = 'Отдельные настройки стиля Modern'
+}
 
 $styles = @(
     @{ mode = 1; name = 'Стиль Windows 7';   desc = 'Классическое меню Windows 7.' },
@@ -104,6 +154,8 @@ $side.Location = New-Object System.Drawing.Point(0, 0)
 $side.Size = New-Object System.Drawing.Size(230, 668)
 $side.BackColor = $C_SIDE
 $form.Controls.Add($side)
+
+$tip = New-Object System.Windows.Forms.ToolTip
 
 $title = New-Object System.Windows.Forms.Label
 $title.Text = 'Меню «Пуск»'
@@ -220,24 +272,27 @@ foreach ($grp in $groups) {
         $y = 0
         foreach ($n in $bucket[$grp.id]) {
             $cur = $values[$n]
+            $shown = if ($labels.ContainsKey($n)) { $labels[$n] } else { $n }
             if ($cur -eq '0' -or $cur -eq '1') {
                 $cb = New-Object System.Windows.Forms.CheckBox
-                $cb.Text = $n
+                $cb.Text = $shown
                 $cb.Location = New-Object System.Drawing.Point(0, $y)
                 $cb.AutoSize = $true
                 $cb.ForeColor = $C_TEXT
                 $cb.Checked = ($cur -eq '1')
                 $cb.Tag = $n
+                $tip.SetToolTip($cb, $n)
                 [void]$script:writers.Add($cb)
                 $page.Controls.Add($cb)
                 $y += 28
             } elseif ($cur -match '^\d{1,4}$') {
                 $lbl = New-Object System.Windows.Forms.Label
-                $lbl.Text = $n
+                $lbl.Text = $shown
                 $lbl.Location = New-Object System.Drawing.Point(0, $y)
                 $lbl.AutoSize = $true
                 $lbl.ForeColor = $C_TEXT
                 $lbl.Tag = $n
+                $tip.SetToolTip($lbl, $n)
                 $page.Controls.Add($lbl)
 
                 $num = New-Object System.Windows.Forms.NumericUpDown
@@ -254,11 +309,12 @@ foreach ($grp in $groups) {
                 $y += 32
             } else {
                 $lbl = New-Object System.Windows.Forms.Label
-                $lbl.Text = $n
+                $lbl.Text = $shown
                 $lbl.Location = New-Object System.Drawing.Point(0, $y)
                 $lbl.AutoSize = $true
                 $lbl.ForeColor = $C_TEXT
                 $lbl.Tag = $n
+                $tip.SetToolTip($lbl, $n)
                 $page.Controls.Add($lbl)
 
                 $txt = New-Object System.Windows.Forms.TextBox
@@ -269,6 +325,7 @@ foreach ($grp in $groups) {
                 $txt.BackColor = $C_CARD
                 $txt.ForeColor = $C_TEXT
                 $txt.BorderStyle = 'FixedSingle'
+                $tip.SetToolTip($txt, $n)
                 [void]$script:writers.Add($txt)
                 $page.Controls.Add($txt)
                 $y += 32
