@@ -237,6 +237,7 @@ foreach ($grp in $groups) {
                 $lbl.Location = New-Object System.Drawing.Point(0, $y)
                 $lbl.AutoSize = $true
                 $lbl.ForeColor = $C_TEXT
+                $lbl.Tag = $n
                 $page.Controls.Add($lbl)
 
                 $num = New-Object System.Windows.Forms.NumericUpDown
@@ -257,6 +258,7 @@ foreach ($grp in $groups) {
                 $lbl.Location = New-Object System.Drawing.Point(0, $y)
                 $lbl.AutoSize = $true
                 $lbl.ForeColor = $C_TEXT
+                $lbl.Tag = $n
                 $page.Controls.Add($lbl)
 
                 $txt = New-Object System.Windows.Forms.TextBox
@@ -345,12 +347,15 @@ foreach ($grp in $groups) {
         $about.Location = New-Object System.Drawing.Point(0, 0)
         $about.Size = New-Object System.Drawing.Size(690, 240)
         $about.ForeColor = $C_MUTED
+        $ver = (Get-Item $configExe -ErrorAction SilentlyContinue).VersionInfo.FileVersion
         $about.Text = "Start11 Tuner — редактор всех настроек, которые Start11 хранит в реестре.`n`n" +
                       "Ключ: HKCU\Software\Stardock\Start8\Start8.ini\Start8`n" +
                       "Контролы строятся по фактическому содержимому ключа: 0/1 — галочки,`n" +
                       "числа — счётчики, остальное — поля ввода.`n`n" +
-                      "Служебные значения (LS, TextLookupD, LastSeenOS2, QC) скрыты и не пишутся.`n" +
-                      "Смена стиля между Windows 10 и Windows 11 требует перезагрузки."
+                      "Пишутся только изменившиеся значения; перед этим снимается бэкап.`n" +
+                      "Служебные (LS, TextLookupD, LastSeenOS2, QC) скрыты и не пишутся.`n" +
+                      "Смена стиля между Windows 10 и Windows 11 требует перезагрузки.`n`n" +
+                      "Установленный Start11: " + $(if ($ver) { $ver } else { 'версия не определена' })
         $page.Controls.Add($about)
     }
 
@@ -436,11 +441,10 @@ $form.Controls.Add($btnRevert)
 
 # ---------- действия ----------
 $btnApply.Add_Click({
-    $file = Save-Backup
-    $written = 0
-    if ($script:selected -ge 1) {
-        Set-ItemProperty $key -Name 'MenuMode' -Value ([string]$script:selected) -Type String
-        $written++
+    # пишем только изменившееся: лишние записи в чужой ключ нам не нужны
+    $pending = New-Object System.Collections.ArrayList
+    if ($script:selected -ge 1 -and [string]$script:selected -ne [string]$values['MenuMode']) {
+        [void]$pending.Add(@{ name = 'MenuMode'; value = [string]$script:selected })
     }
     foreach ($ctrl in $script:writers) {
         $v = if ($ctrl -is [System.Windows.Forms.CheckBox]) {
@@ -448,9 +452,19 @@ $btnApply.Add_Click({
         } elseif ($ctrl -is [System.Windows.Forms.NumericUpDown]) {
             [string][int]$ctrl.Value
         } else { [string]$ctrl.Text }
-        Set-ItemProperty $key -Name $ctrl.Tag -Value $v -Type String
-        $written++
+        $orig = [string]$values[$ctrl.Tag]
+        if ($v -ne $orig) { [void]$pending.Add(@{ name = $ctrl.Tag; value = $v }) }
     }
+
+    if ($pending.Count -eq 0) {
+        $script:status.ForeColor = $C_MUTED
+        $script:status.Text = 'Изменений нет — писать нечего.'
+        return
+    }
+
+    $file = Save-Backup
+    foreach ($p in $pending) { Set-ItemProperty $key -Name $p.name -Value $p.value -Type String }
+    $written = $pending.Count
 
     $stopNote = ''
     $s11 = Get-Process Start11_64 -ErrorAction SilentlyContinue
