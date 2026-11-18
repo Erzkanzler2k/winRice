@@ -134,9 +134,6 @@ keybindings:
     bindings: ['alt+shift+r', 'lwin+shift+r']
   - commands: ['wm-redraw']
     bindings: ['alt+shift+w']
-  # GlazeWM owns Alt, so Windows' Alt+Tab never fires; this is its replacement.
-  - commands: ['wm-cycle-focus']
-    bindings: ['alt+tab']
   - commands: ['wm-toggle-pause']
     bindings: ['alt+shift+p']
 

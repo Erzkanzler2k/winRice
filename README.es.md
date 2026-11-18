@@ -13,14 +13,6 @@
 
 </div>
 
-## Lanzador
-
-`Win` abre el lanzador de winRice. El menú Inicio nativo queda fuera de juego: AutoHotkey se queda con la tecla, así que ya no puede invocar el shell de Windows: `Win+E`, `Win+D`, `Win+L` y `Win+S` están reimplementados en `autohotkey/win-launcher.ahk`.
-
-<div align="center">
-  <img src="docs/launcher.png" alt="lanzador de winRice" width="480">
-</div>
-
 ## Instalación
 
 ```powershell
@@ -29,7 +21,7 @@ cd winRice
 powershell -ExecutionPolicy Bypass -File install.ps1
 ```
 
-Requiere Windows 11 22H2+ y `winget`. El script instala GlazeWM, YASB, WezTerm, Starship, Fastfetch y AutoHotkey, copia las configuraciones, pone el fondo de pantalla, oculta los iconos del escritorio y registra el inicio automático. Es idempotente: vuelve a ejecutarlo tras cualquier cambio.
+Requiere Windows 11 22H2+ y `winget`. El script instala GlazeWM, YASB, WezTerm, Starship y Fastfetch, copia las configuraciones, pone el fondo de pantalla, oculta los iconos del escritorio y registra el inicio automático. Es idempotente: vuelve a ejecutarlo tras cualquier cambio.
 
 ## Teclas
 
@@ -47,7 +39,6 @@ Requiere Windows 11 22H2+ y `winget`. El script instala GlazeWM, YASB, WezTerm, 
 | `Shift + Space` | ventana flotante |
 | `Q` | cerrar |
 | `Space` | lanzador |
-| `Alt + Tab` | alternar ventanas del escritorio |
 | `Enter` | WezTerm |
 | `Shift + R` | recargar configuración |
 
@@ -62,7 +53,6 @@ Requiere Windows 11 22H2+ y `winget`. El script instala GlazeWM, YASB, WezTerm, 
 | `wezterm/.wezterm.lua` | `%USERPROFILE%\.wezterm.lua` |
 | `starship/starship.toml` | `%USERPROFILE%\.config\starship.toml` |
 | `fastfetch/` | `%USERPROFILE%\.config\fastfetch\` |
-| `autohotkey/win-launcher.ahk` | `%USERPROFILE%\.config\winrice\win-launcher.ahk` |
 | `wallpaper/tokyonight.png` | `%USERPROFILE%\Pictures\winRice-wallpaper.png` |
 
 Paleta: fondo `#1a1b26`, texto `#c0caf5`, acento `#7aa2f7`, atenuado `#565f89`.
@@ -70,13 +60,12 @@ Paleta: fondo `#1a1b26`, texto `#c0caf5`, acento `#7aa2f7`, atenuado `#565f89`.
 ## Notas
 
 - La barra se oculta con apps en pantalla completa (`hide_on_fullscreen` en `yasb/config.yaml`).
-- GlazeWM oculta los otros escritorios con *cloak*. Si matas el proceso, el cloak sobrevive al reinicio: `tools/rescue-windows.ps1` recupera esas ventanas y desminimiza las que adoptó como minimizadas.
-- `Win` pertenece a winRice, así que el resto de combinaciones con `Win` ya no llegan a Windows: usa la variante con `Alt`.
-- Para devolver la tecla y conservar el menú Inicio: borra la entrada `winRice` de `HKCU:\Software\Microsoft\Windows\CurrentVersion\Run` y cierra `AutoHotkey64.exe`.
+- Algunas combinaciones con `Win` siguen siendo de Windows: usa la variante con `Alt`.
+- El menú Inicio y la barra de tareas nativos no se tocan; el lanzador es `Alt+Space`.
 - Registros: `~\.config\yasb\yasb.log`, `~\.glzr\glazewm\errors.log`.
 
 ## Créditos
 
-[GlazeWM](https://github.com/glzr-io/GlazeWM) · [YASB](https://github.com/amnweb/yasb) · [WezTerm](https://wezterm.org) · [AutoHotkey](https://www.autohotkey.com) · [Starship](https://starship.rs) · [Fastfetch](https://github.com/fastfetch-cli/fastfetch) · [JetBrains Mono NF](https://github.com/ryanoasis/nerd-fonts) · paleta [Tokyo Night](https://github.com/folke/tokyonight.nvim) · inspirado en [Omarchy](https://github.com/basecamp/omarchy).
+[GlazeWM](https://github.com/glzr-io/GlazeWM) · [YASB](https://github.com/amnweb/yasb) · [WezTerm](https://wezterm.org) · [Starship](https://starship.rs) · [Fastfetch](https://github.com/fastfetch-cli/fastfetch) · [JetBrains Mono NF](https://github.com/ryanoasis/nerd-fonts) · paleta [Tokyo Night](https://github.com/folke/tokyonight.nvim) · inspirado en [Omarchy](https://github.com/basecamp/omarchy).
 
 [MIT](LICENSE) © 2026 Erzkanzler2k
