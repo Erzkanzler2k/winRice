@@ -47,6 +47,7 @@ Requires Windows 11 22H2+ and `winget`. The script installs GlazeWM, YASB, WezTe
 | `Shift + Space` | float |
 | `Q` | close |
 | `Space` | launcher |
+| `Alt + Tab` | cycle windows in the workspace |
 | `Enter` | WezTerm |
 | `Shift + R` | reload config |
 
@@ -69,6 +70,7 @@ Palette: `#1a1b26` background, `#c0caf5` text, `#7aa2f7` accent, `#565f89` muted
 ## Notes
 
 - The bar hides on fullscreen apps (`hide_on_fullscreen` in `yasb/config.yaml`).
+- GlazeWM hides other workspaces by cloaking their windows. Kill it and the cloak can outlive the restart — `tools/rescue-windows.ps1` uncloaks those windows and unminimizes what it re-adopted as minimized.
 - `Win` is owned by winRice, so other `Win` combinations no longer reach Windows — use the `Alt` variant.
 - To hand the key back and keep the native Start menu, delete the `winRice` entry from `HKCU:\Software\Microsoft\Windows\CurrentVersion\Run` and kill `AutoHotkey64.exe`.
 - Logs: `~\.config\yasb\yasb.log`, `~\.glzr\glazewm\errors.log`.

@@ -47,6 +47,7 @@ powershell -ExecutionPolicy Bypass -File install.ps1
 | `Shift + Space` | плавающее окно |
 | `Q` | закрыть |
 | `Space` | лаунчер |
+| `Alt + Tab` | переключение окон рабочего стола |
 | `Enter` | WezTerm |
 | `Shift + R` | перечитать конфиг |
 
@@ -69,6 +70,7 @@ powershell -ExecutionPolicy Bypass -File install.ps1
 ## Заметки
 
 - Бар скрывается в полноэкранных приложениях (`hide_on_fullscreen` в `yasb/config.yaml`).
+- Другие рабочие столы GlazeWM прячет, «затеняя» (cloak) окна. Если процесс убить, тень переживает перезапуск — `tools/rescue-windows.ps1` возвращает такие окна и разминимизирует те, что он принял за свёрнутые.
 - Клавиша `Win` принадлежит winRice, поэтому остальные её сочетания до Windows не доходят — используйте вариант с `Alt`.
 - Вернуть клавишу и штатный Пуск: удалить запись `winRice` из `HKCU:\Software\Microsoft\Windows\CurrentVersion\Run` и завершить `AutoHotkey64.exe`.
 - Логи: `~\.config\yasb\yasb.log`, `~\.glzr\glazewm\errors.log`.

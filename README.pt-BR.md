@@ -47,6 +47,7 @@ Requer Windows 11 22H2+ e `winget`. O script instala GlazeWM, YASB, WezTerm, Sta
 | `Shift + Space` | janela flutuante |
 | `Q` | fechar |
 | `Space` | launcher |
+| `Alt + Tab` | alternar janelas da área de trabalho |
 | `Enter` | WezTerm |
 | `Shift + R` | recarregar configuração |
 
@@ -69,6 +70,7 @@ Paleta: fundo `#1a1b26`, texto `#c0caf5`, destaque `#7aa2f7`, secundário `#565f
 ## Notas
 
 - A barra some com apps em tela cheia (`hide_on_fullscreen` em `yasb/config.yaml`).
+- O GlazeWM esconde as outras áreas com *cloak*. Se o processo for morto, o cloak sobrevive ao reinício: `tools/rescue-windows.ps1` devolve essas janelas e desminimiza as que foram adotadas como minimizadas.
 - `Win` pertence ao winRice, então as outras combinações com `Win` não chegam mais ao Windows: use a variante com `Alt`.
 - Para devolver a tecla e manter o menu Iniciar: apague a entrada `winRice` de `HKCU:\Software\Microsoft\Windows\CurrentVersion\Run` e encerre o `AutoHotkey64.exe`.
 - Logs: `~\.config\yasb\yasb.log`, `~\.glzr\glazewm\errors.log`.

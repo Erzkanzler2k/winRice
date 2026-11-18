@@ -47,6 +47,7 @@ powershell -ExecutionPolicy Bypass -File install.ps1
 | `Shift + Space` | 浮动窗口 |
 | `Q` | 关闭窗口 |
 | `Space` | 启动器 |
+| `Alt + Tab` | 在当前工作区切换窗口 |
 | `Enter` | WezTerm |
 | `Shift + R` | 重新加载配置 |
 
@@ -69,6 +70,7 @@ powershell -ExecutionPolicy Bypass -File install.ps1
 ## 说明
 
 - 全屏应用下状态栏会自动隐藏（`yasb/config.yaml` 里的 `hide_on_fullscreen`）。
+- GlazeWM 通过 cloak 隐藏其他工作区的窗口。若进程被强杀，cloak 会残留——`tools/rescue-windows.ps1` 会把这些窗口取回，并恢复被误判为最小化的窗口。
 - `Win` 归 winRice 所有，其余 `Win` 组合键无法到达 Windows——请使用 `Alt` 版本。
 - 想交还 `Win` 键并保留系统开始菜单：删除 `HKCU:\Software\Microsoft\Windows\CurrentVersion\Run` 中的 `winRice` 项，并结束 `AutoHotkey64.exe`。
 - 日志：`~\.config\yasb\yasb.log`、`~\.glzr\glazewm\errors.log`。
