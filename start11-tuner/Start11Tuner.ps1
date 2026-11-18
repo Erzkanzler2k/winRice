@@ -403,14 +403,25 @@ $btnApply.Add_Click({
         $written++
     }
     $status.ForeColor = $C_TEXT
-    $status.Text = "Записано значений: $written. Бэкап: $file" + "`n" + 'Перезапускаю explorer — обычно этого хватает без перезагрузки.'
+    $status.Text = "Записано значений: $written. Бэкап: $file" + "`n" + 'Закрываю Start11 и перезапускаю explorer.'
     $form.Refresh()
+
+    # Start11 при выходе перезаписывает настройки — закрываем его до записи в оболочку.
+    $stopNote = ''
+    $s11 = Get-Process Start11_64 -ErrorAction SilentlyContinue
+    if ($s11) {
+        try { $s11 | Stop-Process -Force -ErrorAction Stop } catch { $stopNote = ' Start11 закрыть не удалось (доступ запрещён) — он может вернуть старые значения.' }
+    }
+
     Stop-Process -Name explorer -Force -ErrorAction SilentlyContinue
     Start-Sleep -Seconds 3
     Start-Process explorer.exe
     Start-Sleep -Seconds 4
-    $status.Text = "Записано значений: $written. Explorer перезапущен." + "`n" +
-                   'Если меню не изменилось — Start11 требует полной перезагрузки для смены стиля 10/11.'
+
+    if ($stopNote) {
+        Add-Content (Join-Path $bkDir 'last-apply.txt') ("{0} {1}" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $stopNote.Trim())
+    }
+    $form.Close()
 })
 
 $btnRevert.Add_Click({
