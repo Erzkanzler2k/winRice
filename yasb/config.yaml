@@ -1,0 +1,124 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/amnweb/yasb/main/schema.json
+watch_stylesheet: true
+watch_config: true
+update_check: false
+
+bars:
+  primary-bar:
+    enabled: true
+    screens: ['*']
+    class_name: 'yasb-bar'
+    alignment:
+      position: 'top'
+      align: 'center'
+    blur_effect:
+      enabled: true
+      dark_mode: true
+      round_corners: false
+    window_flags:
+      always_on_top: false
+      windows_app_bar: true
+      hide_on_fullscreen: true
+    dimensions:
+      width: '100%'
+      height: 30
+    padding:
+      top: 0
+      left: 0
+      bottom: 0
+      right: 0
+    animation:
+      enabled: true
+      duration: 200
+    widgets:
+      left: ['launcher', 'glazewm_workspaces', 'active_window']
+      center: ['clock']
+      right: ['cpu', 'memory', 'volume']
+
+widgets:
+  launcher:
+    type: 'yasb.quick_launch.QuickLaunchWidget'
+    options:
+      label: "<span class=\"icon\">\ue721</span>"
+      search_placeholder: 'Search apps...'
+      max_results: 24
+      show_icons: true
+      icon_size: 20
+      compact_text: true
+      popup:
+        width: 640
+        height: 440
+        blur: true
+        round_corners: true
+        round_corners_type: 'normal'
+        border_color: 'system'
+        dark_mode: true
+      callbacks:
+        on_left: 'toggle_quick_launch'
+      keybindings:
+        - keys: 'alt+space'
+          action: 'toggle_quick_launch'
+          screen: 'primary'
+
+  glazewm_workspaces:
+    type: 'glazewm.workspaces.GlazewmWorkspacesWidget'
+
+  active_window:
+    type: 'yasb.active_window.ActiveWindowWidget'
+    options:
+      label_icon: false
+
+  clock:
+    type: 'yasb.clock.ClockWidget'
+    options:
+      label: '{%H:%M}'
+      label_alt: '{%a %d %b}'
+      callbacks:
+        on_left: 'toggle_calendar'
+        on_middle: 'toggle_label'
+      calendar:
+        blur: true
+        round_corners: true
+        alignment: 'center'
+        direction: 'down'
+        extended: false
+        show_years: false
+
+  cpu:
+    type: 'yasb.cpu.CpuWidget'
+    options:
+      label: "<span class=\"icon\">\ueea1</span>  {info[percent][total]}%"
+      label_alt: '{info[freq][current]} MHz'
+      update_interval: 2000
+      hide_decimal: true
+      callbacks:
+        on_left: 'toggle_label'
+        on_right: 'toggle_menu'
+
+  memory:
+    type: 'yasb.memory.MemoryWidget'
+    options:
+      label: "<span class=\"icon\">\ue9d9</span>  {virtual_mem_percent}%"
+      label_alt: '{virtual_mem_free} free'
+      update_interval: 3000
+      hide_decimal: true
+      callbacks:
+        on_left: 'toggle_label'
+        on_right: 'toggle_menu'
+
+  volume:
+    type: 'yasb.volume.VolumeWidget'
+    options:
+      label: "\uf028  {level}%"
+      label_alt: '{level}%'
+      tooltip: false
+      icons:
+        muted: "\uf026"
+        "10": "\uf027"
+        "30": "\uf028"
+        "60": "\uf028"
+        "100": "\uf028"
+      callbacks:
+        on_left: 'toggle_mute'
+        on_middle: 'toggle_label'
+        on_right: 'toggle_volume_menu'
