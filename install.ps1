@@ -3,7 +3,7 @@
 $ErrorActionPreference = 'Stop'
 $repo = $PSScriptRoot
 
-$packages = 'glzr-io.glazewm', 'AmN.yasb', 'wez.wezterm', 'Starship.Starship', 'Fastfetch-cli.Fastfetch', 'DEVCOM.JetBrainsMonoNerdFont'
+$packages = 'glzr-io.glazewm', 'AmN.yasb', 'wez.wezterm', 'Starship.Starship', 'Fastfetch-cli.Fastfetch', 'DEVCOM.JetBrainsMonoNerdFont', 'AutoHotkey.AutoHotkey'
 foreach ($id in $packages) {
     winget install --id $id -e --accept-package-agreements --accept-source-agreements --disable-interactivity
 }
@@ -46,6 +46,21 @@ if (-not (Select-String -Path $profilePath -Pattern 'fastfetch' -Quiet)) {
 # autostart
 Set-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'GlazeWM' -Value '"C:\Program Files\glzr.io\GlazeWM\glazewm.exe"'
 & 'C:\Program Files\YASB\yasbc.exe' enable-autostart | Out-Null
+
+# Win key -> launcher (AutoHotkey). Without this the native Start menu opens on Win.
+$ahk = @("$env:LOCALAPPDATA\Programs\AutoHotkey\v2\AutoHotkey64.exe", "$env:ProgramFiles\AutoHotkey\v2\AutoHotkey64.exe") |
+    Where-Object { Test-Path $_ } | Select-Object -First 1
+if ($ahk) {
+    $ahkScript = "$env:USERPROFILE\.config\winrice\win-launcher.ahk"
+    New-Item -ItemType Directory -Force -Path (Split-Path $ahkScript) | Out-Null
+    Copy-Item (Join-Path $repo 'autohotkey\win-launcher.ahk') $ahkScript -Force
+    Set-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'winRice' -Value "`"$ahk`" `"$ahkScript`""
+    Get-Process AutoHotkey64 -ErrorAction SilentlyContinue | Stop-Process -Force
+    Start-Process $ahk -ArgumentList "`"$ahkScript`""
+    Write-Host "launcher -> $ahkScript"
+} else {
+    Write-Warning 'AutoHotkey not found; Win will keep opening the native Start menu.'
+}
 
 # wallpaper + hide desktop icons
 Set-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize' -Name EnableTransparency -Value 1 -Type DWord
