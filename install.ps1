@@ -36,6 +36,7 @@ Set-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Run' -Name 'Gl
 & 'C:\Program Files\YASB\yasbc.exe' enable-autostart | Out-Null
 
 # wallpaper + hide desktop icons
+Set-ItemProperty 'HKCU:\Software\Microsoft\Windows\CurrentVersion\Themes\Personalize' -Name EnableTransparency -Value 1 -Type DWord
 $wp = "$env:USERPROFILE\Pictures\winRice-wallpaper.png"
 Copy-Item (Join-Path $repo 'wallpaper\tokyonight.png') $wp -Force
 Set-ItemProperty 'HKCU:\Control Panel\Desktop' -Name WallpaperStyle -Value '10'
